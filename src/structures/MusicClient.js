@@ -10,14 +10,21 @@ module.exports = class MusicClient extends Client {
         super(opt);
         this.musics = new Collection();
         this.commands = new Collection();
-        this.shoukaku = new Shoukaku(new Libraries.DiscordJS(this), [
+        this.shoukaku = new Shoukaku(new Libraries.DiscordJS(this),
+        [
             {
                 name: "main",
                 url: `${process.env.LAVA_HOST}:${process.env.LAVA_PORT}`,
                 auth: process.env.LAVA_PASS,
                 secure: process.env.LAVA_SECURE === "true"
             }
-        ]);
+        ], {
+            moveOnDisconnect: false,
+            resumable: false,
+            resumableTimeout: 30,
+            reconnectTries: 2,
+            restTimeout: 10000
+        });
         this.spotify = process.env.ENABLE_SPOTIFY === "true"
             ? new LavasfyClient({
                 clientID: process.env.SPOTIFY_ID,
@@ -40,16 +47,18 @@ module.exports = class MusicClient extends Client {
         this.prefix = process.env.PREFIX.toLowerCase();
     }
 
+    _setupShoukakuEvents() {
+        this.shoukaku
+        .on("ready", (node, reconnect) => console.log(`Node ${node} is now ready.${reconnect ? " (reconnected)": ""}`))
+        .on("disconnect", node => console.log(`Node ${node} disconnected.`))
+        .on("close", (node, code, reason) => console.log(`Node ${node} closed. Code: ${code}. Reason: ${reason}.`))
+        .on("error", (node, error) => console.log(`Encountered an error in node ${node}.`, error));
+    }
+
     build() {
         this.loadCommands();
         this.loadEventListeners();
         this.login(process.env.TOKEN);
-
-        this.shoukaku
-            .on("ready", (node, reconnect) => console.log(`Node ${node} is now ready.${reconnect ? " (reconnected)": ""}`))
-            .on("disconnect", node => console.log(`Node ${node} disconnected.`))
-            .on("close", (node, code, reason) => console.log(`Node ${node} closed. Code: ${code}. Reason: ${reason}.`))
-            .on("error", (node, error) => console.log(`Encountered an error in node ${node}.`, error));
     }
 
     /** @private */
