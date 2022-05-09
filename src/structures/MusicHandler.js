@@ -30,7 +30,9 @@ module.exports = class MusicHandler {
     get client() {
         return this.guild.client;
     }
-
+    get exists() {
+        return this.queue.has(this.guild.id);
+    }
     get player() {
         return this.client.shoukaku.players.get(this.guild.id);
     }
@@ -62,7 +64,7 @@ module.exports = class MusicHandler {
         await this.node.joinChannel({
             channelId: voice.id,
             guildId: this.guild.id,
-            shardId: this.guild.shardId,
+            shardId: this.guild.shardId || 0,
             deaf: true
         });
 
@@ -88,8 +90,17 @@ module.exports = class MusicHandler {
                     return;
                 }
                 this.start();
-            })
-            .on("error", console.error);
+            });
+
+            for (const event of ['closed', 'error']) {
+                this.player.on(event, data => {
+                    if (data instanceof Error || data instanceof Object) console.error(data);
+                    this.queue.length = 0;
+                    this.queue = [];
+                    this.player.connection.disconnect();
+                    this.queue.delete(this.guild.id);    
+                });
+            }
     }
 
     /** @param {import("discord.js").TextChannel} text */
